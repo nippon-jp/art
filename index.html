@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Interactive Geometric Art</title>
+    <title>Ultramild Interactive Art</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -33,28 +33,31 @@
         let width, height;
         let particles = [];
         let isTouching = false;
+        let touchX = 0;
+        let touchY = 0;
+        let lastTapTime = 0;
+
         let config = {
-            colors: ['#3b82f6', '#8b5cf6', '#ec4899'],
-            speed: 1.5,
-            complexity: 6,
-            size: 3,
-            style: 'fluid', // fluid, chaotic, grid-flow, geometric-shapes, orbit, float
+            colors: ['#fbcfe8', '#f472b6', '#db2777'],
+            speed: 0.25, // 基準速度をさらに半分に低下
+            complexity: 8,
+            size: 4,
+            style: 'sakura', 
             background: '#050505'
         };
 
         let isAutoCycling = true;
         let autoCycleSeconds = 0;
-        const CYCLE_DURATION = 10;
+        const CYCLE_DURATION = 40; // 40秒間じっくりと同じスタイルを鑑賞
 
         const PALETTES = [
-            ['#3b82f6', '#8b5cf6', '#ec4899'],
-            ['#10b981', '#3b82f6', '#06b6d4'],
-            ['#f59e0b', '#ef4444', '#f97316'],
-            ['#ffffff', '#9ca3af', '#374151'],
-            ['#a855f7', '#ec4899', '#f43f5e'],
-            ['#22c55e', '#84cc16', '#10b981'],
-            ['#eab308', '#f97316', '#ef4444'],
-            ['#6366f1', '#4f46e5', '#4338ca']
+            ['#fbcfe8', '#f472b6', '#db2777'], // 桜
+            ['#ffffff', '#e0f2fe', '#bae6fd'], // 雪
+            ['#bef264', '#86efac', '#22c55e'], // 若葉
+            ['#3b82f6', '#8b5cf6', '#ec4899'], // サイバー
+            ['#a855f7', '#ec4899', '#f43f5e'], // 夢幻
+            ['#fcd34d', '#fbbf24', '#f59e0b'], // 花
+            ['#fefce8', '#fde047', '#4338ca', '#1e1b4b'] // 星空
         ];
 
         function init() {
@@ -62,112 +65,156 @@
             height = canvas.height = window.innerHeight;
             ctx.fillStyle = config.background;
             ctx.fillRect(0, 0, width, height);
-            applyRandomConfig();
+            applyConfig('sakura');
         }
         window.addEventListener('resize', init);
 
-        function applyRandomConfig() {
-            const styles = ['fluid', 'chaotic', 'grid-flow', 'geometric-shapes', 'orbit', 'float'];
-            config.colors = PALETTES[Math.floor(Math.random() * PALETTES.length)];
-            config.style = styles[Math.floor(Math.random() * styles.length)];
-            config.speed = 0.8 + Math.random() * 2.2;
-            config.complexity = 5 + Math.floor(Math.random() * 8);
-            config.size = 2 + Math.random() * 5;
+        function applyConfig(targetStyle) {
+            const styles = ['sakura', 'snow', 'shooting-star', 'leaf', 'floral', 'butterfly', 'fluid'];
+            config.style = targetStyle || styles[Math.floor(Math.random() * styles.length)];
+            
+            // 各スタイルの速度を極限まで抑制
+            if (config.style === 'shooting-star') {
+                config.colors = PALETTES[6];
+                config.speed = 1.0; // 流れ星さえも「ゆっくり」流れる
+            } else if (config.style === 'sakura') {
+                config.colors = PALETTES[0];
+                config.speed = 0.2;
+            } else if (config.style === 'snow') {
+                config.colors = PALETTES[1];
+                config.speed = 0.15;
+            } else {
+                config.colors = PALETTES[Math.floor(Math.random() * PALETTES.length)];
+                config.speed = 0.3 + Math.random() * 0.2;
+            }
+            
+            config.complexity = 7 + Math.floor(Math.random() * 5);
+            config.size = config.style === 'shooting-star' ? 1.0 : 4 + Math.random() * 3;
             createParticles();
         }
 
-        // --- Interaction Logic ---
+        function applyRandomConfig() {
+            applyConfig();
+        }
+
         function spawnInteractionParticles(x, y) {
-            for (let i = 0; i < 5; i++) {
+            const amount = 1;
+            for (let i = 0; i < amount; i++) {
                 const p = new Particle();
                 p.x = x;
                 p.y = y;
-                p.vx = (Math.random() - 0.5) * (config.speed * 4);
-                p.vy = (Math.random() - 0.5) * (config.speed * 4);
+                // インタラクション時の初速も極めて低く
+                p.vx = (Math.random() - 0.5) * (config.speed * 2);
+                p.vy = (Math.random() - 0.5) * (config.speed * 2);
                 particles.push(p);
             }
         }
 
-        const handleInteraction = (e) => {
-            if (!isTouching) return;
-            const x = e.clientX || (e.touches && e.touches[0].clientX);
-            const y = e.clientY || (e.touches && e.touches[0].clientY);
-            if (x && y) spawnInteractionParticles(x, y);
+        const handleInteractionStart = (e) => {
+            const now = Date.now();
+            if (now - lastTapTime < 300) {
+                applyRandomConfig();
+                autoCycleSeconds = 0;
+            }
+            lastTapTime = now;
+            
+            isTouching = true;
+            updateTouchPos(e);
+            spawnInteractionParticles(touchX, touchY);
         };
 
-        canvas.addEventListener('mousedown', () => isTouching = true);
+        const updateTouchPos = (e) => {
+            touchX = e.clientX || (e.touches && e.touches[0].clientX);
+            touchY = e.clientY || (e.touches && e.touches[0].clientY);
+        };
+
+        canvas.addEventListener('mousedown', handleInteractionStart);
         window.addEventListener('mouseup', () => isTouching = false);
-        canvas.addEventListener('mousemove', handleInteraction);
+        canvas.addEventListener('mousemove', (e) => {
+            if (isTouching) {
+                updateTouchPos(e);
+                spawnInteractionParticles(touchX, touchY);
+            }
+        });
         
         canvas.addEventListener('touchstart', (e) => { 
-            isTouching = true; 
-            handleInteraction(e);
+            handleInteractionStart(e);
         }, {passive: false});
         window.addEventListener('touchend', () => isTouching = false);
-        canvas.addEventListener('touchmove', handleInteraction, {passive: false});
+        canvas.addEventListener('touchmove', (e) => {
+            if (isTouching) {
+                updateTouchPos(e);
+                spawnInteractionParticles(touchX, touchY);
+            }
+        }, {passive: false});
 
         class Particle {
             constructor() { 
                 this.reset();
-                this.shapeType = Math.random() > 0.5 ? 'rect' : 'tri';
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.005; // 回転も極低速
+                this.swingOffset = Math.random() * Math.PI * 2;
+                this.flap = Math.random() * Math.PI;
+                this.flapSpeed = 0.01 + Math.random() * 0.02; // 羽ばたきも極低速
             }
             reset() {
-                this.x = Math.random() * width;
-                this.y = Math.random() * height;
-                this.vx = (Math.random() - 0.5) * config.speed;
-                this.vy = (Math.random() - 0.5) * config.speed;
+                if (config.style === 'shooting-star') {
+                    this.x = Math.random() * (width + 100);
+                    this.y = -50 + Math.random() * (height * 0.2);
+                    this.vx = -1.5 - Math.random() * 2; // 漂うような流れ星
+                    this.vy = 0.8 + Math.random() * 1;
+                    this.maxHistory = 12;
+                } else {
+                    this.x = Math.random() * width;
+                    this.y = (config.style === 'sakura' || config.style === 'snow') ? -50 : Math.random() * height;
+                    this.vx = (Math.random() - 0.5) * config.speed;
+                    this.vy = (Math.random() - 0.5) * config.speed;
+                    this.maxHistory = 6;
+                }
                 this.history = [];
-                this.maxHistory = Math.floor(Math.random() * 15) + 10;
                 this.color = config.colors[Math.floor(Math.random() * config.colors.length)];
-                this.size = Math.random() * config.size + 1;
-                this.angle = Math.random() * Math.PI * 2;
-                this.orbitRadius = 50 + Math.random() * 150;
+                this.size = Math.random() * config.size + 1.2;
             }
             update() {
                 this.history.push({x: this.x, y: this.y});
                 if (this.history.length > this.maxHistory) this.history.shift();
                 
-                if (config.style === 'fluid') {
-                    const n = Math.sin(this.x * 0.003) + Math.cos(this.y * 0.003);
-                    this.vx += Math.cos(n * Math.PI) * 0.25;
-                    this.vy += Math.sin(n * Math.PI) * 0.25;
-                } else if (config.style === 'chaotic') {
-                    this.vx += (Math.random() - 0.5) * 1.5;
-                    this.vy += (Math.random() - 0.5) * 1.5;
-                } else if (config.style === 'grid-flow') {
-                    // Snap movement to 90 degree angles
-                    if (Math.random() < 0.05) {
-                        const mag = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-                        if (Math.random() > 0.5) {
-                            this.vx = (Math.random() > 0.5 ? 1 : -1) * mag;
-                            this.vy = 0;
-                        } else {
-                            this.vx = 0;
-                            this.vy = (Math.random() > 0.5 ? 1 : -1) * mag;
-                        }
-                    }
-                } else if (config.style === 'orbit') {
-                    this.angle += 0.02 * config.speed;
-                    const centerX = width / 2;
-                    const centerY = height / 2;
-                    const targetX = centerX + Math.cos(this.angle) * this.orbitRadius;
-                    const targetY = centerY + Math.sin(this.angle) * this.orbitRadius;
-                    this.vx += (targetX - this.x) * 0.01;
-                    this.vy += (targetY - this.y) * 0.01;
-                } else if (config.style === 'float') {
-                    this.vy -= 0.05;
-                    this.vx += Math.sin(Date.now() * 0.001 + this.x) * 0.05;
+                this.rotation += this.rotationSpeed;
+                this.flap += this.flapSpeed;
+
+                if (config.style === 'shooting-star') {
+                    // 低速直線
+                } else if (config.style === 'sakura') {
+                    this.vy = 0.05 + config.speed * 0.4; // わずかな落下
+                    this.vx = Math.sin(Date.now() * 0.0004 + this.swingOffset) * 0.4; // 極めて緩やかな揺れ
+                } else if (config.style === 'snow') {
+                    this.vy = config.speed * 0.6;
+                    this.vx = Math.sin(Date.now() * 0.0004 + this.swingOffset) * 0.2;
+                } else if (config.style === 'fluid') {
+                    const n = Math.sin(this.x * 0.001) + Math.cos(this.y * 0.001);
+                    this.vx += Math.cos(n * Math.PI) * 0.03;
+                    this.vy += Math.sin(n * Math.PI) * 0.03;
+                } else {
+                    this.vy -= 0.005 * config.speed; // わずかな上昇
+                    this.vx += Math.sin(Date.now() * 0.0002 + this.x) * 0.01;
                 }
                 
-                this.x += this.vx; this.y += this.vy;
-                this.vx *= 0.96; this.vy *= 0.96;
-
-                if (particles.length > 800 && this.history.length > 5) {
-                    this.history.shift();
+                // インタラクションの感度も最小限に
+                if (isTouching && config.style !== 'shooting-star') {
+                    const dx = touchX - this.x;
+                    const dy = touchY - this.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < 200) {
+                        this.vx += dx * 0.0002;
+                        this.vy += dy * 0.0002;
+                    }
                 }
 
-                if (this.x < -100 || this.x > width + 100 || this.y < -100 || this.y > height + 100) {
-                    if (particles.length < 300) this.reset();
+                this.x += this.vx; this.y += this.vy;
+                this.vx *= 0.998; this.vy *= 0.998; // 非常に高い粘性
+
+                if (this.y > height + 100 || this.x < -200 || this.x > width + 200 || (config.style !== 'sakura' && config.style !== 'snow' && config.style !== 'shooting-star' && this.y < -100)) {
+                    if (particles.length < (config.style === 'shooting-star' ? 15 : 300)) this.reset();
                     else return false;
                 }
                 return true;
@@ -175,49 +222,61 @@
             draw() {
                 if (this.history.length < 2) return;
 
-                if (config.style === 'geometric-shapes') {
-                    ctx.fillStyle = this.color;
-                    ctx.beginPath();
-                    if (this.shapeType === 'rect') {
-                        ctx.rect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);
-                    } else {
-                        // Triangle
-                        ctx.moveTo(this.x, this.y - this.size);
-                        ctx.lineTo(this.x + this.size, this.y + this.size);
-                        ctx.lineTo(this.x - this.size, this.y + this.size);
-                        ctx.closePath();
-                    }
-                    ctx.fill();
-                    
-                    // Light connecting line
-                    ctx.globalAlpha = 0.2;
-                    ctx.strokeStyle = this.color;
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.moveTo(this.history[0].x, this.history[0].y);
-                    ctx.lineTo(this.x, this.y);
-                    ctx.stroke();
-                    ctx.globalAlpha = 1.0;
-                } else {
+                if (config.style === 'shooting-star') {
                     ctx.beginPath();
                     ctx.strokeStyle = this.color;
                     ctx.lineWidth = this.size;
                     ctx.lineCap = 'round';
-                    ctx.lineJoin = 'round';
                     ctx.moveTo(this.history[0].x, this.history[0].y);
                     for (let i = 1; i < this.history.length; i++) ctx.lineTo(this.history[i].x, this.history[i].y);
                     ctx.stroke();
+                    ctx.beginPath();
+                    ctx.fillStyle = '#fff';
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(this.rotation);
+                    ctx.fillStyle = this.color;
+                    ctx.globalAlpha = 0.75;
+
+                    if (config.style === 'sakura') {
+                        const s = this.size;
+                        ctx.beginPath();
+                        ctx.moveTo(0, s);
+                        ctx.bezierCurveTo(s, s * 0.2, s, -s, 0, -s);
+                        ctx.bezierCurveTo(-s, -s, -s, s * 0.2, 0, s);
+                        ctx.fill();
+                        ctx.globalCompositeOperation = 'destination-out';
+                        ctx.beginPath(); ctx.arc(0, -s, s * 0.25, 0, Math.PI * 2); ctx.fill();
+                        ctx.globalCompositeOperation = 'source-over';
+                    } else if (config.style === 'snow') {
+                        ctx.beginPath(); ctx.arc(0, 0, this.size * 0.7, 0, Math.PI * 2); ctx.fill();
+                    } else if (config.style === 'butterfly') {
+                        const flapScale = Math.sin(this.flap);
+                        ctx.beginPath();
+                        ctx.ellipse(-this.size/2 * Math.abs(flapScale), 0, this.size/2 * Math.abs(flapScale), this.size, 0, 0, Math.PI * 2);
+                        ctx.ellipse(this.size/2 * Math.abs(flapScale), 0, this.size/2 * Math.abs(flapScale), this.size, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else {
+                        ctx.beginPath();
+                        ctx.moveTo(0, -this.size);
+                        ctx.quadraticCurveTo(this.size, 0, 0, this.size);
+                        ctx.quadraticCurveTo(-this.size, 0, 0, -this.size);
+                        ctx.fill();
+                    }
+                    ctx.restore();
                 }
             }
         }
 
         function createParticles() {
             particles = [];
-            const count = 60 + (config.complexity * 20);
+            const count = config.style === 'shooting-star' ? 12 : 120 + (config.complexity * 15);
             for (let i = 0; i < count; i++) particles.push(new Particle());
         }
 
-        // Auto Cycle Timer
         setInterval(() => {
             if (isAutoCycling) {
                 autoCycleSeconds++;
@@ -230,7 +289,8 @@
 
         function animate() {
             ctx.fillStyle = config.background;
-            ctx.globalAlpha = 0.1; // Slightly higher opacity for trailing
+            // 軌跡が消えにくくし、より残像が静かに残るように調整
+            ctx.globalAlpha = config.style === 'shooting-star' ? 0.1 : 0.08; 
             ctx.fillRect(0, 0, width, height);
             ctx.globalAlpha = 1.0;
 
