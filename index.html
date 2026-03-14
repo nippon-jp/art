@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Art Canvas - Pro</title>
+    <title>AI Art Canvas - Portable Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -46,7 +46,7 @@
             }
         }
         textarea::placeholder {
-            color: rgba(255, 255, 255, 0.3);
+            color: rgba(255, 255, 255, 0.2);
         }
         .error-shake {
             animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
@@ -56,6 +56,14 @@
             20%, 80% { transform: translate3d(2px, 0, 0); }
             30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
             40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        .settings-pane {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .settings-pane.open {
+            max-height: 200px;
         }
     </style>
 </head>
@@ -75,11 +83,26 @@
     <div class="fixed bottom-6 left-0 right-0 z-30 flex justify-center px-4 pointer-events-none">
         <div id="panel" class="control-panel glass p-5 rounded-[2.5rem] w-full max-w-lg pointer-events-auto shadow-2xl transition-all duration-500">
             
+            <!-- API Key Settings -->
+            <div id="settingsPane" class="settings-pane mb-4 border-b border-white/10 pb-4">
+                <label class="text-[10px] text-gray-400 uppercase tracking-widest block mb-2">API Key Settings (Saved in Browser)</label>
+                <div class="flex gap-2">
+                    <input 
+                        type="password" 
+                        id="apiKeyInput" 
+                        placeholder="Gemini API Keyを入力..." 
+                        class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs outline-none focus:border-indigo-500 text-white"
+                    >
+                    <button id="saveKeyBtn" class="bg-indigo-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-500">保存</button>
+                </div>
+                <p class="text-[9px] text-gray-500 mt-2 italic">※GitHub Pages等で公開する場合、自身のAPIキーを入力してください。</p>
+            </div>
+
             <div id="expandArea" class="mb-4 space-y-4 block">
                 <div class="relative">
                     <textarea 
                         id="userInput" 
-                        placeholder="どんなアートを作りたいですか？（例：銀河の渦と輝き）" 
+                        placeholder="イメージを言葉に（例：霧に包まれた夜の街灯）" 
                         class="w-full bg-white/5 border border-white/10 rounded-2xl focus:border-indigo-400 focus:bg-white/10 p-4 text-base outline-none resize-none h-28 transition-all pr-12 text-white"
                     ></textarea>
                     <button id="micBtn" class="absolute right-2 bottom-3 p-3 text-gray-400 hover:text-indigo-400 transition-colors active:scale-90">
@@ -100,15 +123,15 @@
             </div>
 
             <div class="flex items-center gap-3">
-                <button id="toggleExpand" class="p-2 text-gray-400 hover:text-white transition-colors">
-                    <svg id="expandIcon" class="transform rotate-180 transition-transform duration-300" width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 15l7-7 7 7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <button id="toggleSettings" class="p-2 text-gray-500 hover:text-indigo-400 transition-colors" title="APIキー設定">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </button>
                 <div id="statusLabel" class="flex-1 text-[10px] text-gray-400 uppercase tracking-widest truncate cursor-pointer py-2">言葉を入力してください</div>
                 <button 
                     id="generateBtn" 
-                    class="bg-white text-black px-8 py-3 rounded-full font-bold text-sm shadow-xl hover:bg-indigo-50 active:scale-90 transition-all flex items-center gap-2"
+                    class="bg-white text-black px-8 py-3 rounded-full font-bold text-sm shadow-xl hover:bg-indigo-50 active:scale-90 transition-all"
                 >
-                    <span id="btnText">生成</span>
+                    生成
                 </button>
             </div>
         </div>
@@ -117,23 +140,19 @@
     <!-- Error Toast -->
     <div id="errorToast" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 glass px-6 py-3 rounded-2xl text-red-400 text-sm hidden flex items-center gap-2 shadow-2xl border border-red-500/30">
         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span id="errorMessage">エラーが発生しました</span>
+        <span id="errorMessage">エラー</span>
     </div>
 
-    <!-- Loading progress -->
+    <!-- Loading Bar -->
     <div id="loadingBar" class="hidden fixed bottom-0 left-0 right-0 h-1.5 bg-indigo-900 z-50">
         <div class="h-full bg-indigo-400 w-full animate-[loading_2s_infinite]"></div>
     </div>
 
-    <style>
-        @keyframes loading {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
-    </style>
-
     <script>
-        const apiKey = "";
+        // Runtime Key from Environment or LocalStorage
+        const envApiKey = ""; 
+        const getApiKey = () => envApiKey || localStorage.getItem('gemini_api_key') || "";
+
         const canvas = document.getElementById('artCanvas');
         const ctx = canvas.getContext('2d');
         const userInput = document.getElementById('userInput');
@@ -141,20 +160,19 @@
         const micBtn = document.getElementById('micBtn');
         const saveImgBtn = document.getElementById('saveImgBtn');
         const record10Btn = document.getElementById('record10Btn');
-        const toggleExpand = document.getElementById('toggleExpand');
-        const expandArea = document.getElementById('expandArea');
-        const expandIcon = document.getElementById('expandIcon');
         const statusLabel = document.getElementById('statusLabel');
         const statusIndicator = document.getElementById('statusIndicator');
         const timerDisplay = document.getElementById('timer');
         const indicatorText = document.getElementById('indicatorText');
-        const errorToast = document.getElementById('errorToast');
-        const errorMessage = document.getElementById('errorMessage');
+        const settingsPane = document.getElementById('settingsPane');
+        const toggleSettings = document.getElementById('toggleSettings');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const saveKeyBtn = document.getElementById('saveKeyBtn');
 
         let width, height;
         let particles = [];
         let config = {
-            colors: ['#444', '#888', '#bbb'],
+            colors: ['#333', '#666', '#999'],
             speed: 1.5,
             complexity: 6,
             size: 3,
@@ -165,17 +183,30 @@
         let mediaRecorder;
         let recordedChunks = [];
         let isRecording = false;
-        let timerInterval;
 
         function init() {
             width = canvas.width = window.innerWidth;
             height = canvas.height = window.innerHeight;
             ctx.fillStyle = config.background;
             ctx.fillRect(0, 0, width, height);
+            apiKeyInput.value = localStorage.getItem('gemini_api_key') || "";
         }
         window.addEventListener('resize', init);
         init();
 
+        // --- Settings Logic ---
+        toggleSettings.addEventListener('click', () => {
+            settingsPane.classList.toggle('open');
+        });
+
+        saveKeyBtn.addEventListener('click', () => {
+            const key = apiKeyInput.value.trim();
+            localStorage.setItem('gemini_api_key', key);
+            settingsPane.classList.remove('open');
+            statusLabel.textContent = "APIキーを保存しました";
+        });
+
+        // --- Particle Logic ---
         class Particle {
             constructor() { this.reset(); }
             reset() {
@@ -191,7 +222,6 @@
             update() {
                 this.history.push({x: this.x, y: this.y});
                 if (this.history.length > this.maxHistory) this.history.shift();
-                
                 if (config.style === 'fluid') {
                     const n = Math.sin(this.x * 0.003) + Math.cos(this.y * 0.003);
                     this.vx += Math.cos(n * Math.PI) * 0.25;
@@ -199,22 +229,15 @@
                 } else if (config.style === 'chaotic') {
                     this.vx += (Math.random() - 0.5) * 1.5;
                     this.vy += (Math.random() - 0.5) * 1.5;
-                } else if (config.style === 'float') {
-                    this.vy -= 0.08;
-                    this.vx += Math.sin(Date.now() * 0.001 + this.x) * 0.1;
                 }
-                
                 this.x += this.vx; this.y += this.vy;
                 this.vx *= 0.96; this.vy *= 0.96;
                 if (this.x < -100 || this.x > width + 100 || this.y < -100 || this.y > height + 100) this.reset();
             }
             draw() {
                 if (this.history.length < 2) return;
-                ctx.beginPath();
-                ctx.strokeStyle = this.color;
-                ctx.lineWidth = this.size;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
+                ctx.beginPath(); ctx.strokeStyle = this.color; ctx.lineWidth = this.size;
+                ctx.lineCap = 'round'; ctx.lineJoin = 'round';
                 ctx.moveTo(this.history[0].x, this.history[0].y);
                 for (let i = 1; i < this.history.length; i++) ctx.lineTo(this.history[i].x, this.history[i].y);
                 ctx.stroke();
@@ -228,15 +251,6 @@
         }
         createParticles();
 
-        function toggleInput() {
-            const isHidden = expandArea.style.display === 'none';
-            expandArea.style.display = isHidden ? 'block' : 'none';
-            expandIcon.classList.toggle('rotate-180', isHidden);
-            if (isHidden) userInput.focus();
-        }
-        toggleExpand.addEventListener('click', toggleInput);
-
-        // Fetch with Retry & Backoff
         async function fetchWithRetry(url, options, retries = 5, backoff = 1000) {
             try {
                 const response = await fetch(url, options);
@@ -249,66 +263,49 @@
             }
         }
 
-        function showError(msg) {
-            errorMessage.textContent = msg;
-            errorToast.classList.remove('hidden');
-            document.getElementById('panel').classList.add('error-shake');
-            setTimeout(() => {
-                errorToast.classList.add('hidden');
-                document.getElementById('panel').classList.remove('error-shake');
-            }, 5000);
-        }
-
         async function generateArt() {
             const prompt = userInput.value.trim();
+            const key = getApiKey();
             if (!prompt) return;
+            if (!key) {
+                settingsPane.classList.add('open');
+                statusLabel.textContent = "APIキーを設定してください";
+                return;
+            }
             
             generateBtn.disabled = true;
             statusLabel.textContent = "AIが創造しています...";
             document.getElementById('loadingBar').classList.remove('hidden');
-            errorToast.classList.add('hidden');
 
-            const systemPrompt = "Convert text to digital art parameters. Return ONLY a JSON object: {colors:[3-5 hex strings], speed:0.1-5, complexity:1-10, size:1-15, style:'fluid'|'chaotic'|'geometric'|'float', background:hex}";
-            const payload = {
-                contents: [{ parts: [{ text: `User prompt: "${prompt}"` }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-                generationConfig: { 
-                    responseMimeType: "application/json",
-                    temperature: 0.7
-                }
-            };
-
+            const systemPrompt = "Convert text to digital art parameters. Return ONLY JSON: {colors:[hex codes], speed:0.1-5, complexity:1-10, size:1-15, style:'fluid'|'chaotic'|'geometric'|'float', background:hex}";
             try {
                 const response = await fetchWithRetry(
-                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`,
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`,
                     {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: `Prompt: "${prompt}"` }] }],
+                            systemInstruction: { parts: [{ text: systemPrompt }] },
+                            generationConfig: { responseMimeType: "application/json" }
+                        })
                     }
                 );
-                
                 const data = await response.json();
-                if (data.candidates && data.candidates[0].content.parts[0].text) {
-                    const res = JSON.parse(data.candidates[0].content.parts[0].text);
-                    config = { ...config, ...res };
-                    createParticles();
-                    statusLabel.textContent = prompt;
-                    if (window.innerWidth < 768) toggleInput();
-                } else {
-                    throw new Error("Invalid API response");
-                }
+                config = JSON.parse(data.candidates[0].content.parts[0].text);
+                createParticles();
+                statusLabel.textContent = prompt;
             } catch (e) {
-                console.error(e);
-                showError("接続に失敗しました。時間をおいて再度お試しください。");
-                statusLabel.textContent = "エラーが発生しました";
+                document.getElementById('errorMessage').textContent = "APIエラー: キーが正しいか確認してください";
+                document.getElementById('errorToast').classList.remove('hidden');
+                setTimeout(() => document.getElementById('errorToast').classList.add('hidden'), 5000);
             } finally {
                 generateBtn.disabled = false;
                 document.getElementById('loadingBar').classList.add('hidden');
             }
         }
 
-        // Voice
+        // --- Voice ---
         const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (Speech) {
             const rec = new Speech();
@@ -319,6 +316,7 @@
             micBtn.onclick = () => rec.start();
         }
 
+        // --- Download ---
         saveImgBtn.onclick = () => {
             const link = document.createElement('a');
             link.download = `art-${Date.now()}.png`;
@@ -330,33 +328,25 @@
             if (isRecording) return;
             recordedChunks = [];
             const stream = canvas.captureStream(30);
-            const types = ['video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
-            const type = types.find(t => MediaRecorder.isTypeSupported(t)) || '';
-            
+            const type = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm';
             mediaRecorder = new MediaRecorder(stream, { mimeType: type });
             mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
             mediaRecorder.onstop = () => {
-                const blob = new Blob(recordedChunks, { type: type || 'video/webm' });
+                const blob = new Blob(recordedChunks, { type });
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url; a.download = `art-${Date.now()}.mp4`;
+                const a = document.createElement('a'); a.href = url; a.download = `art-${Date.now()}.mp4`;
                 document.body.appendChild(a); a.click();
-                window.URL.revokeObjectURL(url);
-                clearInterval(timerInterval);
                 isRecording = false;
                 statusIndicator.classList.add('hidden');
             };
-
             mediaRecorder.start();
             isRecording = true;
             let start = Date.now();
-            indicatorText.textContent = "録画中";
             statusIndicator.classList.remove('hidden');
-
-            timerInterval = setInterval(() => {
-                const elapsed = Math.floor((Date.now() - start) / 1000);
+            let timer = setInterval(() => {
+                let elapsed = Math.floor((Date.now() - start) / 1000);
                 timerDisplay.textContent = `00:${(seconds - elapsed).toString().padStart(2, '0')}`;
-                if (elapsed >= seconds) mediaRecorder.stop();
+                if (elapsed >= seconds) { mediaRecorder.stop(); clearInterval(timer); }
             }, 1000);
         }
 
@@ -365,10 +355,8 @@
         userInput.onkeydown = (e) => { if(e.key === 'Enter' && e.ctrlKey) generateArt(); };
 
         function animate() {
-            ctx.fillStyle = config.background;
-            ctx.globalAlpha = 0.08;
-            ctx.fillRect(0, 0, width, height);
-            ctx.globalAlpha = 1.0;
+            ctx.fillStyle = config.background; ctx.globalAlpha = 0.08;
+            ctx.fillRect(0, 0, width, height); ctx.globalAlpha = 1.0;
             particles.forEach(p => { p.update(); p.draw(); });
             requestAnimationFrame(animate);
         }
